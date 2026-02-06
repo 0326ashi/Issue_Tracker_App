@@ -197,6 +197,44 @@
     font-size: 0.85rem;
 }
 
+.auth-toast {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: center;
+    padding: 14px 18px;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 18px 40px rgba(15, 18, 45, 0.2);
+    border: 1px solid rgba(47, 67, 162, 0.15);
+    color: #151535;
+    z-index: 30;
+    animation: toast-slide 0.4s ease-out;
+}
+
+.auth-toast__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(120deg, #1f2c78, #2e45c4);
+    color: #ffffff;
+}
+
+.auth-toast__icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.auth-toast__text {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
 .auth-modal-backdrop {
     position: fixed;
     inset: 0;
@@ -285,6 +323,18 @@
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes toast-slide {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 }
 

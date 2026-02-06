@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/AuthLayout'
 import { loginUser } from '../services/auth'
 
@@ -9,6 +9,8 @@ function Login() {
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [successMessage, setSuccessMessage] = useState('')
+    const navigate = useNavigate()
 
     // Submit credentials and persist the auth token on success
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -19,6 +21,11 @@ function Login() {
         try {
             const result = await loginUser({ email, password })
             localStorage.setItem('authToken', result.token)
+            localStorage.setItem('username', result.user.name)
+            setSuccessMessage('Login successful. Redirecting to dashboard...')
+            setTimeout(() => {
+                navigate('/dashboard')
+            }, 900)
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Login failed.'
             setError(message)
@@ -86,7 +93,7 @@ function Login() {
                     </label>
                     {error && <span className="auth-error">{error}</span>}
                     <button type="submit" className="auth-button" disabled={isSubmitting}>
-                        {isSubmitting ? 'Logging in...' : 'Login'}
+                        {isSubmitting ? 'Wait..' : 'Login'}
                     </button>
                     <button type="button" className="link-button">
                         Forgot password?
@@ -100,6 +107,19 @@ function Login() {
                     </Link>
                 </div>
             </div>
+            {successMessage && (
+                <div className="auth-toast" role="status" aria-live="polite">
+                    <div className="auth-toast__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                                d="M9.6 16.2 5.9 12.5l1.6-1.6 2.1 2.1 6-6 1.6 1.6-7.6 7.6Z"
+                                fill="currentColor"
+                            />
+                        </svg>
+                    </div>
+                    <div className="auth-toast__text">{successMessage}</div>
+                </div>
+            )}
         </AuthLayout>
     )
 }
