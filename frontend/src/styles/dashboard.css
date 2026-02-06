@@ -288,6 +288,48 @@
     gap: 12px;
 }
 
+.issue-card__buttons {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.icon-button {
+    border: 1px solid #d6dbe6;
+    background: #ffffff;
+    color: #1f2c78;
+    border-radius: 999px;
+    padding: 6px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.icon-button svg {
+    width: 16px;
+    height: 16px;
+}
+
+.icon-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 16px rgba(15, 23, 42, 0.12);
+}
+
+.icon-button--edit {
+    color: #2f43a2;
+}
+
+.icon-button--delete {
+    color: #b42318;
+    border-color: rgba(180, 35, 24, 0.25);
+    background: rgba(180, 35, 24, 0.06);
+}
+
 .issue-card__date {
     color: #7a879b;
     font-size: 0.8rem;

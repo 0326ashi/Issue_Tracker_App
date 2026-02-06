@@ -1,64 +1,24 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Dropdown from '../components/Dropdown'
+import {
+    ISSUE_PRIORITY_OPTIONS,
+    ISSUE_SEVERITY_OPTIONS,
+    ISSUE_STATUS_OPTIONS,
+    type Issue,
+    type IssuePriority,
+    type IssueSeverity,
+    type IssueStatus,
+} from '../constants/issues'
+import { getIssues } from '../services/issues'
 
-// Types for issue properties
-type IssueStatus = 'Open' | 'In Progress' | 'Resolved' | 'Closed'
-type IssuePriority = 'Low' | 'Medium' | 'High' | 'Critical'
-type IssueSeverity = 'Minor' | 'Major' | 'Critical'
-
-type Issue = {
-    id: string
-    title: string
-    description: string
-    status: IssueStatus
-    priority: IssuePriority
-    severity: IssueSeverity
-    createdAt: string
-}
-
-const storageKey = 'issues'
-
-const loadIssues = (): Issue[] => {
-    try {
-        const raw = localStorage.getItem(storageKey)
-        if (!raw) {
-            return []
-        }
-
-        const parsed = JSON.parse(raw)
-        return Array.isArray(parsed) ? (parsed as Issue[]) : []
-    } catch {
-        return []
-    }
-}
-
-const statusOptions: Array<IssueStatus | 'All'> = [
-    'All',
-    'Open',
-    'In Progress',
-    'Resolved',
-    'Closed',
-]
-
-const priorityOptions: Array<IssuePriority | 'All'> = [
-    'All',
-    'Low',
-    'Medium',
-    'High',
-    'Critical',
-]
-
-const severityOptions: Array<IssueSeverity | 'All'> = [
-    'All',
-    'Minor',
-    'Major',
-    'Critical',
-]
+const statusOptions: Array<IssueStatus | 'All'> = ['All', ...ISSUE_STATUS_OPTIONS]
+const priorityOptions: Array<IssuePriority | 'All'> = ['All', ...ISSUE_PRIORITY_OPTIONS]
+const severityOptions: Array<IssueSeverity | 'All'> = ['All', ...ISSUE_SEVERITY_OPTIONS]
 
 // Dashboard component for managing and displaying issues
 function Dashboard() {
-    const [issues, setIssues] = useState<Issue[]>(() => loadIssues())
+    const [issues, setIssues] = useState<Issue[]>([])
     const [query, setQuery] = useState('')
     const [debouncedQuery, setDebouncedQuery] = useState('')
     const [statusFilter, setStatusFilter] = useState<IssueStatus | 'All'>('All')
@@ -76,6 +36,18 @@ function Dashboard() {
     const [editSeverity, setEditSeverity] = useState<IssueSeverity>('Minor')
     const [editStatus, setEditStatus] = useState<IssueStatus>('Open')
 
+    const formatDate = (value: string) => {
+        const date = new Date(value)
+        if (Number.isNaN(date.getTime())) {
+            return value
+        }
+
+        const day = String(date.getDate()).padStart(2, '0')
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const year = date.getFullYear()
+        return `${day}-${month}-${year}`
+    }
+
     useEffect(() => {
         const handle = setTimeout(() => {
             setDebouncedQuery(query.trim())
@@ -85,8 +57,27 @@ function Dashboard() {
     }, [query])
 
     useEffect(() => {
-        localStorage.setItem(storageKey, JSON.stringify(issues))
-    }, [issues])
+        let isActive = true
+
+        const load = async () => {
+            try {
+                const data = await getIssues()
+                if (isActive) {
+                    setIssues(data)
+                }
+            } catch {
+                if (isActive) {
+                    setIssues([])
+                }
+            }
+        }
+
+        load()
+
+        return () => {
+            isActive = false
+        }
+    }, [])
 
     const statusCounts = useMemo(() => {
         return issues.reduce(
@@ -121,7 +112,7 @@ function Dashboard() {
         })
     }, [debouncedQuery, issues, priorityFilter, severityFilter, statusFilter])
 
-    const pageSize = 6
+    const pageSize = 3
     const totalPages = Math.max(1, Math.ceil(filteredIssues.length / pageSize))
     const safePage = Math.min(page, totalPages)
 
@@ -174,6 +165,16 @@ function Dashboard() {
         setIsEditing(false)
     }
 
+    const startEditFromIssue = (issue: Issue) => {
+        setSelectedIssueId(issue.id)
+        setEditTitle(issue.title)
+        setEditDescription(issue.description)
+        setEditPriority(issue.priority)
+        setEditSeverity(issue.severity)
+        setEditStatus(issue.status)
+        setIsEditing(true)
+    }
+
     const saveEdit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
 
@@ -220,6 +221,17 @@ function Dashboard() {
                 issue.id === selectedIssue.id ? { ...issue, status } : issue,
             ),
         )
+    }
+
+    const handleDeleteIssue = (issueId: string) => {
+        if (!window.confirm('Delete this issue?')) {
+            return
+        }
+
+        setIssues((current) => current.filter((issue) => issue.id !== issueId))
+        if (selectedIssueId === issueId) {
+            setSelectedIssueId(null)
+        }
     }
 
     // Handle logout by clearing local storage and navigating to login page
@@ -373,7 +385,6 @@ function Dashboard() {
                                         <h3>{issue.title}</h3>
                                         <p>{issue.description}</p>
                                     </div>
-                                    <span className="issue-card__id">{issue.id}</span>
                                 </div>
                                 <div className="issue-card__meta">
                                     <span className={`badge badge--status badge--${issue.status
@@ -392,15 +403,52 @@ function Dashboard() {
                                 </div>
                                 <div className="issue-card__actions">
                                     <span className="issue-card__date">
-                                        Created {issue.createdAt}
+                                        Created on {formatDate(issue.createdAt)}
                                     </span>
-                                    <button
-                                        className="ghost-button ghost-button--compact"
-                                        type="button"
-                                        onClick={() => setSelectedIssueId(issue.id)}
-                                    >
-                                        View details
-                                    </button>
+                                    <div className="issue-card__buttons">
+                                        <button
+                                            className="icon-button"
+                                            type="button"
+                                            aria-label="View details"
+                                        >
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <path
+                                                    d="M12 5c-5 0-9.2 3-11 7 1.8 4 6 7 11 7s9.2-3 11-7c-1.8-4-6-7-11-7Zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Z"
+                                                    fill="currentColor"
+                                                />
+                                                <circle cx="12" cy="12" r="2.2" fill="currentColor" />
+                                            </svg>
+                                            <span>View</span>
+                                        </button>
+                                        <button
+                                            className="icon-button icon-button--edit"
+                                            type="button"
+                                            onClick={() => startEditFromIssue(issue)}
+                                            aria-label="Edit issue"
+                                        >
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <path
+                                                    d="m4 16.5 9.9-9.9 3.5 3.5-9.9 9.9H4Zm12.4-11.2 1.3-1.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4l-1.3 1.3Z"
+                                                    fill="currentColor"
+                                                />
+                                            </svg>
+                                            <span>Edit</span>
+                                        </button>
+                                        <button
+                                            className="icon-button icon-button--delete"
+                                            type="button"
+                                            onClick={() => handleDeleteIssue(issue.id)}
+                                            aria-label="Delete issue"
+                                        >
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <path
+                                                    d="M9 4h6l1 2h4v2H4V6h4l1-2Zm1 6h2v8h-2v-8Zm4 0h2v8h-2v-8ZM6 8h12l-1 12H7Z"
+                                                    fill="currentColor"
+                                                />
+                                            </svg>
+                                            <span>Delete</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </article>
                         ))}
@@ -437,7 +485,6 @@ function Dashboard() {
                         <div className="panel-header">
                             <div>
                                 <h2>Issue details</h2>
-                                <p>{selectedIssue.id}</p>
                             </div>
                             <span className={`badge badge--status badge--${selectedIssue.status
                                 .toLowerCase()
@@ -548,7 +595,7 @@ function Dashboard() {
                                     </div>
                                     <div>
                                         <span>Created</span>
-                                        <strong>{selectedIssue.createdAt}</strong>
+                                        <strong>{formatDate(selectedIssue.createdAt)}</strong>
                                     </div>
                                 </div>
                                 <div className="issue-details__actions">
@@ -566,15 +613,6 @@ function Dashboard() {
                                             onClick={() => updateStatusWithConfirm('Resolved')}
                                         >
                                             Mark resolved
-                                        </button>
-                                    )}
-                                    {selectedIssue.status !== 'Closed' && (
-                                        <button
-                                            className="ghost-button"
-                                            type="button"
-                                            onClick={() => updateStatusWithConfirm('Closed')}
-                                        >
-                                            Close issue
                                         </button>
                                     )}
                                 </div>
