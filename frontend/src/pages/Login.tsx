@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/AuthLayout'
 import { loginUser } from '../services/auth'
@@ -11,6 +11,10 @@ function Login() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [successMessage, setSuccessMessage] = useState('')
     const navigate = useNavigate()
+
+    useEffect(() => {
+        localStorage.clear()
+    }, [])
 
     // Submit credentials and persist the auth token on success
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {

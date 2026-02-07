@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ConfirmPopup from '../components/ConfirmPopup'
 import Dropdown from '../components/Dropdown'
+import Toast from '../components/Toast'
 import {
     ISSUE_PRIORITY_OPTIONS,
     ISSUE_SEVERITY_OPTIONS,
@@ -10,7 +12,7 @@ import {
     type IssueSeverity,
     type IssueStatus,
 } from '../constants/issues'
-import { getIssues } from '../services/issues'
+import { deleteIssue, getIssues } from '../services/issues'
 
 const statusOptions: Array<IssueStatus | 'All'> = ['All', ...ISSUE_STATUS_OPTIONS]
 const priorityOptions: Array<IssuePriority | 'All'> = ['All', ...ISSUE_PRIORITY_OPTIONS]
@@ -25,16 +27,12 @@ function Dashboard() {
     const [priorityFilter, setPriorityFilter] = useState<IssuePriority | 'All'>('All')
     const [severityFilter, setSeverityFilter] = useState<IssueSeverity | 'All'>('All')
     const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null)
-    const [isEditing, setIsEditing] = useState(false)
     const [page, setPage] = useState(1)
+    const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
+    const [showDeleteSuccess, setShowDeleteSuccess] = useState(false)
     const navigate = useNavigate()
     const userName = localStorage.getItem('username') || 'User'
-
-    const [editTitle, setEditTitle] = useState('')
-    const [editDescription, setEditDescription] = useState('')
-    const [editPriority, setEditPriority] = useState<IssuePriority>('Medium')
-    const [editSeverity, setEditSeverity] = useState<IssueSeverity>('Minor')
-    const [editStatus, setEditStatus] = useState<IssueStatus>('Open')
 
     const formatDate = (value: string) => {
         const date = new Date(value)
@@ -128,6 +126,19 @@ function Dashboard() {
         safePage * pageSize,
     )
 
+    useEffect(() => {
+        if (!showDeleteSuccess) {
+            return undefined
+        }
+
+        // Auto-dismiss the success toast
+        const timer = window.setTimeout(() => {
+            setShowDeleteSuccess(false)
+        }, 2600)
+
+        return () => window.clearTimeout(timer)
+    }, [showDeleteSuccess])
+
     // Deselect issue if it no longer exists in filtered list
     useEffect(() => {
         if (selectedIssueId && !filteredIssues.some((issue) => issue.id === selectedIssueId)) {
@@ -145,61 +156,6 @@ function Dashboard() {
         setStatusFilter('All')
         setPriorityFilter('All')
         setSeverityFilter('All')
-    }
-
-    // Start editing an issue
-    const startEdit = () => {
-        if (!selectedIssue) {
-            return
-        }
-
-        setEditTitle(selectedIssue.title)
-        setEditDescription(selectedIssue.description)
-        setEditPriority(selectedIssue.priority)
-        setEditSeverity(selectedIssue.severity)
-        setEditStatus(selectedIssue.status)
-        setIsEditing(true)
-    }
-
-    const cancelEdit = () => {
-        setIsEditing(false)
-    }
-
-    const startEditFromIssue = (issue: Issue) => {
-        setSelectedIssueId(issue.id)
-        setEditTitle(issue.title)
-        setEditDescription(issue.description)
-        setEditPriority(issue.priority)
-        setEditSeverity(issue.severity)
-        setEditStatus(issue.status)
-        setIsEditing(true)
-    }
-
-    const saveEdit = (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault()
-
-        if (!selectedIssue) {
-            return
-        }
-
-        setIssues((current) =>
-            current.map((issue) => {
-                if (issue.id !== selectedIssue.id) {
-                    return issue
-                }
-
-                return {
-                    ...issue,
-                    title: editTitle.trim() || issue.title,
-                    description: editDescription.trim() || issue.description,
-                    priority: editPriority,
-                    severity: editSeverity,
-                    status: editStatus,
-                }
-            }),
-        )
-
-        setIsEditing(false)
     }
 
     const updateStatusWithConfirm = (status: IssueStatus) => {
@@ -224,13 +180,33 @@ function Dashboard() {
     }
 
     const handleDeleteIssue = (issueId: string) => {
-        if (!window.confirm('Delete this issue?')) {
+        setDeleteTargetId(issueId)
+    }
+
+    const cancelDelete = () => {
+        if (!isDeleting) {
+            setDeleteTargetId(null)
+        }
+    }
+
+    const confirmDelete = async () => {
+        if (!deleteTargetId) {
             return
         }
 
-        setIssues((current) => current.filter((issue) => issue.id !== issueId))
-        if (selectedIssueId === issueId) {
-            setSelectedIssueId(null)
+        setIsDeleting(true)
+        try {
+            await deleteIssue(deleteTargetId)
+            setIssues((current) => current.filter((issue) => issue.id !== deleteTargetId))
+            if (selectedIssueId === deleteTargetId) {
+                setSelectedIssueId(null)
+            }
+            setDeleteTargetId(null)
+            setShowDeleteSuccess(true)
+        } catch {
+            // Keep UI state unchanged on delete failure
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -369,7 +345,7 @@ function Dashboard() {
                     <div className="issue-list">
                         {pagedIssues.length === 0 && (
                             <div className="issue-empty issue-empty--center">
-                                <p>There are no issues currently.</p>
+                                <p>There are no issues</p>
                             </div>
                         )}
 
@@ -423,7 +399,6 @@ function Dashboard() {
                                         <button
                                             className="icon-button icon-button--edit"
                                             type="button"
-                                            onClick={() => startEditFromIssue(issue)}
                                             aria-label="Edit issue"
                                         >
                                             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -493,134 +468,57 @@ function Dashboard() {
                             </span>
                         </div>
 
-                        {isEditing ? (
-                            <form className="issue-form" onSubmit={saveEdit}>
-                                <label>
-                                    Title
-                                    <input
-                                        type="text"
-                                        value={editTitle}
-                                        onChange={(event) => setEditTitle(event.target.value)}
-                                        required
-                                    />
-                                </label>
-                                <label>
-                                    Description
-                                    <textarea
-                                        rows={4}
-                                        value={editDescription}
-                                        onChange={(event) => setEditDescription(event.target.value)}
-                                        required
-                                    />
-                                </label>
-                                <div className="issue-form__row">
-                                    <label>
-                                        Status
-                                        <select
-                                            value={editStatus}
-                                            onChange={(event) =>
-                                                setEditStatus(event.target.value as IssueStatus)
-                                            }
-                                        >
-                                            {statusOptions
-                                                .filter((option) => option !== 'All')
-                                                .map((option) => (
-                                                    <option key={option} value={option}>
-                                                        {option}
-                                                    </option>
-                                                ))}
-                                        </select>
-                                    </label>
-                                    <label>
-                                        Priority
-                                        <select
-                                            value={editPriority}
-                                            onChange={(event) =>
-                                                setEditPriority(event.target.value as IssuePriority)
-                                            }
-                                        >
-                                            {priorityOptions
-                                                .filter((option) => option !== 'All')
-                                                .map((option) => (
-                                                    <option key={option} value={option}>
-                                                        {option}
-                                                    </option>
-                                                ))}
-                                        </select>
-                                    </label>
-                                    <label>
-                                        Severity
-                                        <select
-                                            value={editSeverity}
-                                            onChange={(event) =>
-                                                setEditSeverity(event.target.value as IssueSeverity)
-                                            }
-                                        >
-                                            {severityOptions
-                                                .filter((option) => option !== 'All')
-                                                .map((option) => (
-                                                    <option key={option} value={option}>
-                                                        {option}
-                                                    </option>
-                                                ))}
-                                        </select>
-                                    </label>
+                        <>
+                            <p className="issue-details__description">
+                                {selectedIssue.description}
+                            </p>
+                            <div className="issue-details__meta">
+                                <div>
+                                    <span>Priority</span>
+                                    <strong>{selectedIssue.priority}</strong>
                                 </div>
-                                <div className="issue-form__actions">
-                                    <button className="primary-button" type="submit">
-                                        Save changes
-                                    </button>
+                                <div>
+                                    <span>Severity</span>
+                                    <strong>{selectedIssue.severity}</strong>
+                                </div>
+                                <div>
+                                    <span>Created</span>
+                                    <strong>{formatDate(selectedIssue.createdAt)}</strong>
+                                </div>
+                            </div>
+                            <div className="issue-details__actions">
+                                <button className="primary-button" type="button">
+                                    Edit issue
+                                </button>
+                                {selectedIssue.status !== 'Resolved' && (
                                     <button
                                         className="ghost-button"
                                         type="button"
-                                        onClick={cancelEdit}
+                                        onClick={() => updateStatusWithConfirm('Resolved')}
                                     >
-                                        Cancel
+                                        Mark resolved
                                     </button>
-                                </div>
-                            </form>
-                        ) : (
-                            <>
-                                <p className="issue-details__description">
-                                    {selectedIssue.description}
-                                </p>
-                                <div className="issue-details__meta">
-                                    <div>
-                                        <span>Priority</span>
-                                        <strong>{selectedIssue.priority}</strong>
-                                    </div>
-                                    <div>
-                                        <span>Severity</span>
-                                        <strong>{selectedIssue.severity}</strong>
-                                    </div>
-                                    <div>
-                                        <span>Created</span>
-                                        <strong>{formatDate(selectedIssue.createdAt)}</strong>
-                                    </div>
-                                </div>
-                                <div className="issue-details__actions">
-                                    <button
-                                        className="primary-button"
-                                        type="button"
-                                        onClick={startEdit}
-                                    >
-                                        Edit issue
-                                    </button>
-                                    {selectedIssue.status !== 'Resolved' && (
-                                        <button
-                                            className="ghost-button"
-                                            type="button"
-                                            onClick={() => updateStatusWithConfirm('Resolved')}
-                                        >
-                                            Mark resolved
-                                        </button>
-                                    )}
-                                </div>
-                            </>
-                        )}
+                                )}
+                            </div>
+                        </>
                     </section>
                 )}
             </div>
+
+            <ConfirmPopup
+                open={deleteTargetId !== null}
+                title="Delete issue"
+                message="Are you sure you want to delete this issue?"
+                confirmText="Yes"
+                cancelText="No"
+                confirmDisabled={isDeleting}
+                onConfirm={confirmDelete}
+                onCancel={cancelDelete}
+            />
+
+            {showDeleteSuccess && (
+                <Toast message="Issue deleted successfully." />
+            )}
         </div>
     )
 }

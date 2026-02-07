@@ -14,6 +14,7 @@ type IssueError = {
     message: string
 }
 
+// Helper function to handle API responses
 const handleResponse = async <T extends object>(response: Response): Promise<T> => {
     const data = (await response.json()) as T | IssueError
 
@@ -26,6 +27,7 @@ const handleResponse = async <T extends object>(response: Response): Promise<T> 
     return data as T
 }
 
+// API call for creating a new issue
 export const createIssue = async (payload: {
     title: string
     description: string
@@ -42,8 +44,18 @@ export const createIssue = async (payload: {
     return data.issue
 }
 
+// API call for fetching all issues
 export const getIssues = async (): Promise<Issue[]> => {
     const response = await fetch(`${API_URL}/api/issues`)
     const data = await handleResponse<IssueListResponse>(response)
     return data.issues
+}
+
+// API call for deleting an issue by ID
+export const deleteIssue = async (issueId: string): Promise<void> => {
+    const response = await fetch(`${API_URL}/api/issues/${issueId}`, {
+        method: 'DELETE',
+    })
+
+    await handleResponse<{ message: string }>(response)
 }
