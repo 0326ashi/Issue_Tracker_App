@@ -36,7 +36,20 @@ const listIssues = async (_req, res) => {
   return res.json({ issues: issues.map(mapIssue) });
 };
 
+//Delete an Issue
+const deleteIssue = async (req, res) => {
+  const { id } = req.params;
+
+  const deletedIssue = await Issue.findByIdAndDelete(id);
+  if (!deletedIssue) {
+    return res.status(404).json({ message: "Issue not found." });
+  }
+
+  return res.json({ message: "Issue deleted." });
+};
+
 module.exports = {
   createIssue,
   listIssues,
+  deleteIssue,
 };
