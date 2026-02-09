@@ -364,6 +364,50 @@ function Dashboard() {
         navigate("/login");
     };
 
+    // Handle exporting the filtered issues as a CSV file
+    const handleExportCsv = () => {
+        if (filteredIssues.length === 0) {
+            return;
+        }
+
+        const escapeCsvValue = (value: string) => {
+            if (/[",\n]/.test(value)) {
+                return `"${value.replace(/"/g, '""')}"`;
+            }
+
+            return value;
+        };
+
+        const headers = [
+            "Title",
+            "Description",
+            "Status",
+            "Priority",
+            "Severity",
+            "Created On",
+        ];
+        const rows = filteredIssues.map((issue) => [
+            issue.title,
+            issue.description,
+            issue.status,
+            issue.priority,
+            issue.severity,
+            formatDate(issue.createdAt),
+        ]);
+        const csvContent = [headers, ...rows]
+            .map((row) => row.map((value) => escapeCsvValue(String(value))).join(","))
+            .join("\n");
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" }); // Create a blob from the CSV content
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const stamp = new Date().toISOString().slice(0, 10);
+        link.href = url;
+        link.download = `issues-${stamp}.csv`;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="dashboard-page">
             <div className="topbar">
@@ -387,6 +431,14 @@ function Dashboard() {
                         <p>Track, prioritize, and resolve issues in one place.</p>
                     </div>
                     <div className="page-header__actions">
+                        <button
+                            className="ghost-button"
+                            type="button"
+                            onClick={handleExportCsv}
+                            disabled={filteredIssues.length === 0}
+                        >
+                            Export as CSV
+                        </button>
                         <button
                             className="primary-button"
                             type="button"
@@ -421,6 +473,16 @@ function Dashboard() {
 
                 <section className="panel list-panel">
                     <div className="filters-bar">
+                        <div className="filter-field filter-field--search">
+                            <span>Search</span>
+                            <input
+                                type="search"
+                                value={query}
+                                onChange={(event) => setQuery(event.target.value)}
+                                placeholder="Search by Title"
+                                aria-label="Search issues"
+                            />
+                        </div>
                         <div className="filter-field">
                             <span>Status</span>
                             <Dropdown
