@@ -61,7 +61,7 @@ const deleteIssue = async (req, res) => {
   return res.json({ message: "Issue deleted." });
 };
 
-// Update issue status
+// Update the issue status
 const updateIssueStatus = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -83,10 +83,35 @@ const updateIssueStatus = async (req, res) => {
   return res.json({ issue: mapIssue(updatedIssue) });
 };
 
+// Update issue details
+const updateIssue = async (req, res) => {
+  const { id } = req.params;
+  const { title, description, priority, severity, status } = req.body;
+
+  const updates = {};
+  if (typeof title === "string") updates.title = title;
+  if (typeof description === "string") updates.description = description;
+  if (typeof priority === "string") updates.priority = priority;
+  if (typeof severity === "string") updates.severity = severity;
+  if (typeof status === "string") updates.status = status;
+
+  const updatedIssue = await Issue.findByIdAndUpdate(id, updates, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!updatedIssue) {
+    return res.status(404).json({ message: "Issue not found." });
+  }
+
+  return res.json({ issue: mapIssue(updatedIssue) });
+};
+
 module.exports = {
   createIssue,
   getIssue,
   listIssues,
   deleteIssue,
   updateIssueStatus,
+  updateIssue,
 };

@@ -20,7 +20,7 @@ import {
     deleteIssue,
     getIssueById,
     getIssues,
-    updateIssueStatus,
+    updateIssueStatusEdit,
 } from "../services/issues";
 
 const statusOptions: Array<IssueStatus | "All"> = [
@@ -99,6 +99,7 @@ function Dashboard() {
     const [viewIssue, setViewIssue] = useState<Issue | null>(null);
     const [isViewLoading, setIsViewLoading] = useState(false);
     const [viewError, setViewError] = useState("");
+    const [isIssuesLoading, setIsIssuesLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
     const [statusTargetId, setStatusTargetId] = useState<string | null>(null);
@@ -137,6 +138,10 @@ function Dashboard() {
         let isActive = true;
 
         const load = async () => {
+            if (isActive) {
+                setIsIssuesLoading(true);
+            }
+
             try {
                 const data = await getIssues();
                 if (isActive) {
@@ -145,6 +150,10 @@ function Dashboard() {
             } catch {
                 if (isActive) {
                     setIssues([]);
+                }
+            } finally {
+                if (isActive) {
+                    setIsIssuesLoading(false);
                 }
             }
         };
@@ -294,7 +303,7 @@ function Dashboard() {
         }
 
         try {
-            const updatedIssue = await updateIssueStatus(
+            const updatedIssue = await updateIssueStatusEdit(
                 statusTargetId,
                 statusTargetValue,
             );
@@ -460,7 +469,14 @@ function Dashboard() {
                     <div className="filters-divider" />
 
                     <div className="issue-list">
-                        {pagedIssues.length === 0 && (
+                        {isIssuesLoading && (
+                            <div className="issue-loading issue-empty--center">
+                                <div className="issue-loading__spinner" aria-hidden="true" />
+                                <p>Loading issues...</p>
+                            </div>
+                        )}
+
+                        {!isIssuesLoading && pagedIssues.length === 0 && (
                             <div className="issue-empty issue-empty--center">
                                 <p>There are no issues</p>
                             </div>
@@ -511,6 +527,7 @@ function Dashboard() {
                                             className="icon-button icon-button--edit"
                                             type="button"
                                             aria-label="Edit issue"
+                                            onClick={() => navigate(`/issues/${issue.id}/edit`)}
                                         >
                                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                                 <path
