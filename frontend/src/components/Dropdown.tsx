@@ -9,12 +9,23 @@ type DropdownOption<T extends string> = {
 // Props for the Dropdown component, including label, current value, options, and change handler
 type DropdownProps<T extends string> = {
     label: string
-    value: T
+    value: T | ''
     options: Array<DropdownOption<T>>
     onChange: (value: T) => void
+    placeholder?: string
+    allowClear?: boolean
+    onClear?: () => void
 }
 
-function Dropdown<T extends string>({ label, value, options, onChange }: DropdownProps<T>) {
+function Dropdown<T extends string>({
+    label,
+    value,
+    options,
+    onChange,
+    placeholder,
+    allowClear,
+    onClear,
+}: DropdownProps<T>) {
     const [isOpen, setIsOpen] = useState(false)
     const wrapperRef = useRef<HTMLDivElement | null>(null)
 
@@ -46,7 +57,8 @@ function Dropdown<T extends string>({ label, value, options, onChange }: Dropdow
         }
     }, [isOpen])
 
-    const activeOption = options.find((option) => option.value === value) ?? options[0]
+    const activeOption = options.find((option) => option.value === value)
+    const displayValue = activeOption?.label ?? placeholder ?? ''
 
     // Render the dropdown
     return (
@@ -59,9 +71,26 @@ function Dropdown<T extends string>({ label, value, options, onChange }: Dropdow
                 aria-label={label}
                 onClick={() => setIsOpen((current) => !current)}
             >
-                <span className="dropdown__value">{activeOption.label}</span>
+                <span className="dropdown__value">{displayValue}</span>
                 <span className="dropdown__caret" aria-hidden="true" />
             </button>
+            {allowClear && value !== '' && onClear && (
+                <button
+                    type="button"
+                    className="dropdown__clear"
+                    aria-label={`Clear ${label}`}
+                    onMouseDown={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                    }}
+                    onClick={(event) => {
+                        event.stopPropagation()
+                        onClear()
+                    }}
+                >
+                    <span aria-hidden="true">×</span>
+                </button>
+            )}
             {isOpen && (
                 <div
                     className="dropdown__menu"

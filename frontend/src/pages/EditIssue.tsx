@@ -22,7 +22,7 @@ function EditIssue() {
     const [isLoading, setIsLoading] = useState(true)
     const navigate = useNavigate()
 
-    const storageKey = id ? `edit_issue_${id}` : '' // Key for the local storage to save the initial issue state
+    const storageKey = id ? `edit_issue` : '' // Key for the local storage to save the initial issue state
 
     // Create a snapshot of the current form state to compare against the initial state
     const currentSnapshot = useMemo(() => {

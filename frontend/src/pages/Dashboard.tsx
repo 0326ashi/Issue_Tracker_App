@@ -411,7 +411,6 @@ function Dashboard() {
     return (
         <div className="dashboard-page">
             <div className="topbar">
-                <span className="topbar__title">Issue Tracker</span>
                 <div className="topbar__right">
                     <span className="user-greeting">Welcome {userName}!</span>
                     <button
