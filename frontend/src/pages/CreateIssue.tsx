@@ -19,6 +19,7 @@ function CreateIssue() {
     const [priority, setPriority] = useState<IssuePriority | ''>('')
     const [severity, setSeverity] = useState<IssueSeverity | ''>('')
     const [successMessage, setSuccessMessage] = useState('')
+    const [isToastError, setIsToastError] = useState(false)
     const [showCancelConfirm, setShowCancelConfirm] = useState(false)
     const navigate = useNavigate()
     const storageKey = 'create_issue' // Key for localStorage to save the draft issue
@@ -46,18 +47,34 @@ function CreateIssue() {
     // Handle form submission
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
-        if (!priority || !severity) {
-            setSuccessMessage('Please select priority and severity.')
+        const missingFields: string[] = []
+        if (!title.trim()) {
+            missingFields.push('Title')
+        }
+        if (!description.trim()) {
+            missingFields.push('Description')
+        }
+        if (!priority) {
+            missingFields.push('Priority')
+        }
+        if (!severity) {
+            missingFields.push('Severity')
+        }
+
+        if (missingFields.length > 0) {
+            setSuccessMessage(`Please fill: ${missingFields.join(', ')}.`)
+            setIsToastError(true)
             return
         }
         try {
             await createIssue({
                 title,
                 description,
-                priority,
-                severity,
+                priority: priority as IssuePriority,
+                severity: severity as IssueSeverity,
             })
             setSuccessMessage('Issue created successfully. Redirecting to dashboard...')
+            setIsToastError(false)
             localStorage.removeItem(storageKey)
             setTimeout(() => {
                 navigate('/dashboard')
@@ -66,6 +83,7 @@ function CreateIssue() {
             const message =
                 err instanceof Error ? err.message : 'Failed to create issue.'
             setSuccessMessage(message)
+            setIsToastError(true)
         }
     }
 
@@ -114,20 +132,22 @@ function CreateIssue() {
 
                 <section className="panel create-panel">
                     <form className="issue-form issue-form--stack" onSubmit={handleSubmit}>
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={(event) => setTitle(event.target.value)}
-                            placeholder="Title *"
-                            required
-                        />
-                        <textarea
-                            rows={5}
-                            value={description}
-                            onChange={(event) => setDescription(event.target.value)}
-                            placeholder="Description *"
-                            required
-                        />
+                        <div className="issue-form__field">
+                            <span>Title</span>
+                            <input
+                                type="text"
+                                value={title}
+                                onChange={(event) => setTitle(event.target.value)}
+                            />
+                        </div>
+                        <div className="issue-form__field">
+                            <span>Description</span>
+                            <textarea
+                                rows={5}
+                                value={description}
+                                onChange={(event) => setDescription(event.target.value)}
+                            />
+                        </div>
                         <div className="issue-form__row">
                             <div className="issue-form__field">
                                 <span>Priority</span>
@@ -169,7 +189,11 @@ function CreateIssue() {
                 </section>
             </div>
             {successMessage && (
-                <div className="auth-toast" role="status" aria-live="polite">
+                <div
+                    className={`auth-toast${isToastError ? ' auth-toast--error' : ''}`}
+                    role="status"
+                    aria-live="polite"
+                >
                     <div className="auth-toast__icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path

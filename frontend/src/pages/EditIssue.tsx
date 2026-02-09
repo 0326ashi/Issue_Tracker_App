@@ -22,6 +22,7 @@ function EditIssue() {
     const [initialSnapshot, setInitialSnapshot] = useState<string>('')
     const [showCancelConfirm, setShowCancelConfirm] = useState(false)
     const [statusMessage, setStatusMessage] = useState('')
+    const [isToastError, setIsToastError] = useState(false)
     const [isLoading, setIsLoading] = useState(true)
     const navigate = useNavigate()
 
@@ -44,6 +45,7 @@ function EditIssue() {
     useEffect(() => {
         if (!id) {
             setStatusMessage('Issue not found.')
+            setIsToastError(true)
             setIsLoading(false)
             return
         }
@@ -70,6 +72,7 @@ function EditIssue() {
                 const message =
                     err instanceof Error ? err.message : 'Failed to load issue.'
                 setStatusMessage(message)
+                setIsToastError(true)
             } finally {
                 setIsLoading(false)
             }
@@ -115,6 +118,26 @@ function EditIssue() {
             return
         }
 
+        const missingFields: string[] = []
+        if (!title.trim()) {
+            missingFields.push('Title')
+        }
+        if (!description.trim()) {
+            missingFields.push('Description')
+        }
+        if (!priority) {
+            missingFields.push('Priority')
+        }
+        if (!severity) {
+            missingFields.push('Severity')
+        }
+
+        if (missingFields.length > 0) {
+            setStatusMessage(`Please fill: ${missingFields.join(', ')}.`)
+            setIsToastError(true)
+            return
+        }
+
         try {
             await updateIssue(id, {
                 title,
@@ -123,6 +146,7 @@ function EditIssue() {
                 severity,
             })
             setStatusMessage('Issue updated successfully. Redirecting to dashboard...')
+            setIsToastError(false)
             if (storageKey) {
                 localStorage.removeItem(storageKey)
             }
@@ -133,6 +157,7 @@ function EditIssue() {
             const message =
                 err instanceof Error ? err.message : 'Failed to update issue.'
             setStatusMessage(message)
+            setIsToastError(true)
         }
     }
 
@@ -191,20 +216,22 @@ function EditIssue() {
                         <p className="issue-details-dialog__hint">Loading issue...</p>
                     ) : (
                         <form className="issue-form issue-form--stack" onSubmit={handleSubmit}>
-                            <input
-                                type="text"
-                                value={title}
-                                onChange={(event) => setTitle(event.target.value)}
-                                placeholder="Title *"
-                                required
-                            />
-                            <textarea
-                                rows={5}
-                                value={description}
-                                onChange={(event) => setDescription(event.target.value)}
-                                placeholder="Description *"
-                                required
-                            />
+                            <div className="issue-form__field">
+                                <span>Title</span>
+                                <input
+                                    type="text"
+                                    value={title}
+                                    onChange={(event) => setTitle(event.target.value)}
+                                />
+                            </div>
+                            <div className="issue-form__field">
+                                <span>Description</span>
+                                <textarea
+                                    rows={5}
+                                    value={description}
+                                    onChange={(event) => setDescription(event.target.value)}
+                                />
+                            </div>
                             <div className="issue-form__row">
                                 <div className="issue-form__field">
                                     <span>Priority</span>
@@ -242,7 +269,11 @@ function EditIssue() {
             </div>
 
             {statusMessage && (
-                <div className="auth-toast" role="status" aria-live="polite">
+                <div
+                    className={`auth-toast${isToastError ? ' auth-toast--error' : ''}`}
+                    role="status"
+                    aria-live="polite"
+                >
                     <div className="auth-toast__icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" aria-hidden="true">
                             <path

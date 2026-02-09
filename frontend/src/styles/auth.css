@@ -225,6 +225,10 @@
     color: #ffffff;
 }
 
+.auth-toast--error .auth-toast__icon {
+    background: linear-gradient(120deg, #b42318, #dc2626);
+}
+
 .auth-toast__icon svg {
     width: 18px;
     height: 18px;
