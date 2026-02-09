@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ConfirmPopup from "../components/ConfirmPopup";
+import IssueDetailsPopup from "../components/IssueDetailsPopup.tsx";
 import Dropdown from "../components/Dropdown";
 import Toast from "../components/Toast";
 import openImage from "../assets/open.png";
@@ -15,7 +16,12 @@ import {
     type IssueSeverity,
     type IssueStatus,
 } from "../constants/issues";
-import { deleteIssue, getIssues, updateIssueStatus } from "../services/issues";
+import {
+    deleteIssue,
+    getIssueById,
+    getIssues,
+    updateIssueStatus,
+} from "../services/issues";
 
 const statusOptions: Array<IssueStatus | "All"> = [
     "All",
@@ -89,7 +95,10 @@ function Dashboard() {
     const [severityFilter, setSeverityFilter] = useState<IssueSeverity | "All">(
         "All",
     );
-    const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+    const [viewIssueId, setViewIssueId] = useState<string | null>(null);
+    const [viewIssue, setViewIssue] = useState<Issue | null>(null);
+    const [isViewLoading, setIsViewLoading] = useState(false);
+    const [viewError, setViewError] = useState("");
     const [page, setPage] = useState(1);
     const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
     const [statusTargetId, setStatusTargetId] = useState<string | null>(null);
@@ -207,20 +216,6 @@ function Dashboard() {
         () => setOpenMarkMenuId(null),
     );
 
-    // Deselect issue if it no longer exists in filtered list
-    useEffect(() => {
-        if (
-            selectedIssueId &&
-            !filteredIssues.some((issue) => issue.id === selectedIssueId)
-        ) {
-            setSelectedIssueId(null);
-        }
-    }, [filteredIssues, selectedIssueId]);
-
-    const selectedIssue = useMemo(() => {
-        return issues.find((issue) => issue.id === selectedIssueId) || null;
-    }, [issues, selectedIssueId]);
-
     const statusPills = [
         {
             key: "Open",
@@ -254,6 +249,30 @@ function Dashboard() {
         setStatusFilter("All");
         setPriorityFilter("All");
         setSeverityFilter("All");
+    };
+
+    const handleViewIssue = async (issueId: string) => {
+        const cachedIssue = issues.find((issue) => issue.id === issueId) || null;
+        setViewIssueId(issueId);
+        setViewIssue(cachedIssue);
+        setViewError("");
+        setIsViewLoading(true);
+
+        try {
+            const issue = await getIssueById(issueId);
+            setViewIssue(issue);
+        } catch {
+            setViewError("Unable to load issue details.");
+        } finally {
+            setIsViewLoading(false);
+        }
+    };
+
+    const closeViewPopup = () => {
+        setViewIssueId(null);
+        setViewIssue(null);
+        setViewError("");
+        setIsViewLoading(false);
     };
 
     // Request the status change of an issue
@@ -297,28 +316,6 @@ function Dashboard() {
         }
     };
 
-    // Update issue status with confirmation prompt
-    const updateStatusWithConfirm = (status: IssueStatus) => {
-        if (!selectedIssue) {
-            return;
-        }
-
-        const message =
-            status === "Resolved"
-                ? "Mark this issue as resolved?"
-                : "Close this issue?";
-
-        if (!window.confirm(message)) {
-            return;
-        }
-
-        setIssues((current) =>
-            current.map((issue) =>
-                issue.id === selectedIssue.id ? { ...issue, status } : issue,
-            ),
-        );
-    };
-
     //Handle delete button click by setting the target issue 
     const handleDeleteIssue = (issueId: string) => {
         setDeleteTargetId(issueId);
@@ -336,9 +333,6 @@ function Dashboard() {
             setIssues((current) =>
                 current.filter((issue) => issue.id !== deleteTargetId),
             );
-            if (selectedIssueId === deleteTargetId) {
-                setSelectedIssueId(null);
-            }
             setDeleteTargetId(null);
             setShowDeleteSuccess(true);
         } catch {
@@ -502,6 +496,7 @@ function Dashboard() {
                                             className="icon-button"
                                             type="button"
                                             aria-label="View details"
+                                            onClick={() => handleViewIssue(issue.id)}
                                         >
                                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                                 <path
@@ -618,49 +613,16 @@ function Dashboard() {
                     </div>
                 </section>
 
-                {selectedIssue && (
-                    <section className="panel detail-panel">
-                        <div className="panel-header">
-                            <div>
-                                <h2>Issue details</h2>
-                            </div>
-                            <span
-                                className={`badge badge--status badge--${selectedIssue.status
-                                    .toLowerCase()
-                                    .replace(" ", "-")}`}
-                            >
-                                {selectedIssue.status}
-                            </span>
-                        </div>
-
-                        <>
-                            <p className="issue-details__description">
-                                {selectedIssue.description}
-                            </p>
-                            <div className="issue-details__meta">
-                                <div>
-                                    <span>Created</span>
-                                    <strong>{formatDate(selectedIssue.createdAt)}</strong>
-                                </div>
-                            </div>
-                            <div className="issue-details__actions">
-                                <button className="primary-button" type="button">
-                                    Edit issue
-                                </button>
-                                {selectedIssue.status !== "Resolved" && (
-                                    <button
-                                        className="ghost-button"
-                                        type="button"
-                                        onClick={() => updateStatusWithConfirm("Resolved")}
-                                    >
-                                        Mark resolved
-                                    </button>
-                                )}
-                            </div>
-                        </>
-                    </section>
-                )}
             </div>
+
+            <IssueDetailsPopup
+                open={viewIssueId !== null}
+                issue={viewIssue}
+                loading={isViewLoading}
+                error={viewError}
+                onClose={closeViewPopup}
+                formatDate={formatDate}
+            />
 
             <ConfirmPopup
                 open={deleteTargetId !== null}

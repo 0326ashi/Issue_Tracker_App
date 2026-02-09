@@ -51,6 +51,13 @@ export const getIssues = async (): Promise<Issue[]> => {
     return data.issues
 }
 
+// API call for fetching a single issue by ID
+export const getIssueById = async (issueId: string): Promise<Issue> => {
+    const response = await fetch(`${API_URL}/api/issues/${issueId}`)
+    const data = await handleResponse<IssueResponse>(response)
+    return data.issue
+}
+
 // API call for deleting an issue by ID
 export const deleteIssue = async (issueId: string): Promise<void> => {
     const response = await fetch(`${API_URL}/api/issues/${issueId}`, {

@@ -8,6 +8,7 @@ const mapIssue = (issue) => ({
   priority: issue.priority,
   severity: issue.severity,
   createdAt: issue.createdAt,
+  updatedAt: issue.updatedAt,
 });
 
 //Create a new Issue
@@ -34,6 +35,18 @@ const createIssue = async (req, res) => {
 const listIssues = async (_req, res) => {
   const issues = await Issue.find().sort({ createdAt: -1 });
   return res.json({ issues: issues.map(mapIssue) });
+};
+
+//Get an Issue by ID
+const getIssue = async (req, res) => {
+  const { id } = req.params;
+
+  const issue = await Issue.findById(id);
+  if (!issue) {
+    return res.status(404).json({ message: "Issue not found." });
+  }
+
+  return res.json({ issue: mapIssue(issue) });
 };
 
 //Delete an Issue
@@ -72,6 +85,7 @@ const updateIssueStatus = async (req, res) => {
 
 module.exports = {
   createIssue,
+  getIssue,
   listIssues,
   deleteIssue,
   updateIssueStatus,

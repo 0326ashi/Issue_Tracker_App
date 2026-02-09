@@ -28,4 +28,5 @@ export type Issue = {
     priority: IssuePriority
     severity: IssueSeverity
     createdAt: string
+    updatedAt: string
 }
