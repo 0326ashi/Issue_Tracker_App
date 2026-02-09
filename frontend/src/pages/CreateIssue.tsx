@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import ConfirmPopup from '../components/ConfirmPopup'
 import Dropdown from '../components/Dropdown'
 import {
     ISSUE_PRIORITY_OPTIONS,
@@ -13,14 +14,40 @@ import { createIssue } from '../services/issues'
 function CreateIssue() {
     const [title, setTitle] = useState('')
     const [description, setDescription] = useState('')
-    const [priority, setPriority] = useState<IssuePriority>('Medium')
-    const [severity, setSeverity] = useState<IssueSeverity>('Minor')
+    const [priority, setPriority] = useState<IssuePriority | ''>('')
+    const [severity, setSeverity] = useState<IssueSeverity | ''>('')
     const [successMessage, setSuccessMessage] = useState('')
+    const [showCancelConfirm, setShowCancelConfirm] = useState(false)
     const navigate = useNavigate()
+    const storageKey = 'create_issue' // Key for localStorage to save the draft issue
+
+    // Get the current form state to compare with the saved draft
+    const currentSnapshot = useMemo(() => {
+        return JSON.stringify({ title, description, priority, severity })
+    }, [title, description, priority, severity])
+
+    // Check if there is a saved draft in local storage 
+    const hasDraft = useMemo(() => {
+        return Boolean(title.trim() || description.trim() || priority || severity)
+    }, [description, priority, severity, title])
+
+    // Save the form state to local storage whenever it changes, and remove it when there is no draft
+    useEffect(() => {
+        if (hasDraft) {
+            localStorage.setItem(storageKey, currentSnapshot)
+            return
+        }
+
+        localStorage.removeItem(storageKey)
+    }, [currentSnapshot, hasDraft])
 
     // Handle form submission
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
+        if (!priority || !severity) {
+            setSuccessMessage('Please select priority and severity.')
+            return
+        }
         try {
             await createIssue({
                 title,
@@ -29,6 +56,7 @@ function CreateIssue() {
                 severity,
             })
             setSuccessMessage('Issue created successfully. Redirecting to dashboard...')
+            localStorage.removeItem(storageKey)
             setTimeout(() => {
                 navigate('/dashboard')
             }, 900)
@@ -37,6 +65,26 @@ function CreateIssue() {
                 err instanceof Error ? err.message : 'Failed to create issue.'
             setSuccessMessage(message)
         }
+    }
+
+    const handleBack = () => {
+        if (hasDraft) {
+            setShowCancelConfirm(true)
+            return
+        }
+
+        localStorage.removeItem(storageKey)
+        navigate('/dashboard')
+    }
+
+    const confirmDiscardChanges = () => {
+        localStorage.removeItem(storageKey)
+        setShowCancelConfirm(false)
+        navigate('/dashboard')
+    }
+
+    const cancelDiscardChanges = () => {
+        setShowCancelConfirm(false)
     }
 
     return (
@@ -55,7 +103,7 @@ function CreateIssue() {
                         <button
                             className="ghost-button"
                             type="button"
-                            onClick={() => navigate('/dashboard')}
+                            onClick={handleBack}
                         >
                             Back
                         </button>
@@ -84,6 +132,9 @@ function CreateIssue() {
                                 <Dropdown
                                     label="Priority"
                                     value={priority}
+                                    placeholder=""
+                                    allowClear
+                                    onClear={() => setPriority('')}
                                     options={ISSUE_PRIORITY_OPTIONS.map((option) => ({
                                         value: option,
                                         label: option,
@@ -96,6 +147,9 @@ function CreateIssue() {
                                 <Dropdown
                                     label="Severity"
                                     value={severity}
+                                    placeholder=""
+                                    allowClear
+                                    onClear={() => setSeverity('')}
                                     options={ISSUE_SEVERITY_OPTIONS.map((option) => ({
                                         value: option,
                                         label: option,
@@ -125,6 +179,16 @@ function CreateIssue() {
                     <div className="auth-toast__text">{successMessage}</div>
                 </div>
             )}
+
+            <ConfirmPopup
+                open={showCancelConfirm}
+                title="Discard changes"
+                message="You have unsaved changes. Do you want to discard them?"
+                confirmText="Yes"
+                cancelText="No"
+                onConfirm={confirmDiscardChanges}
+                onCancel={cancelDiscardChanges}
+            />
         </div>
     )
 }
