@@ -421,6 +421,25 @@
     padding: 12px 14px;
 }
 
+.issue-loading {
+    background: #f3f7ff;
+    color: #1f3b7a;
+    border-radius: 12px;
+    padding: 16px 14px;
+    display: grid;
+    gap: 10px;
+    justify-items: center;
+}
+
+.issue-loading__spinner {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid rgba(31, 59, 122, 0.2);
+    border-top-color: #1f3b7a;
+    animation: spin 0.9s linear infinite;
+}
+
 .issue-empty--center {
     text-align: center;
     display: grid;
@@ -979,5 +998,11 @@
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
     }
 }

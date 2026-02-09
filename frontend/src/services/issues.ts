@@ -81,3 +81,38 @@ export const updateIssueStatus = async (
     const data = await handleResponse<IssueResponse>(response)
     return data.issue
 }
+
+// API call for updating issue status (separate endpoint for status edit)
+export const updateIssueStatusEdit = async (
+    issueId: string,
+    status: IssueStatus,
+): Promise<Issue> => {
+    const response = await fetch(`${API_URL}/api/issues/${issueId}/statusedit`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+    })
+
+    const data = await handleResponse<IssueResponse>(response)
+    return data.issue
+}
+
+// API call for updating issue details
+export const updateIssue = async (
+    issueId: string,
+    payload: {
+        title: string
+        description: string
+        priority: IssuePriority
+        severity: IssueSeverity
+    },
+): Promise<Issue> => {
+    const response = await fetch(`${API_URL}/api/issues/${issueId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    })
+
+    const data = await handleResponse<IssueResponse>(response)
+    return data.issue
+}
