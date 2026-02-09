@@ -1,3 +1,5 @@
+import '../styles/Toast.css'
+
 type ToastProps = {
     message: string
 }

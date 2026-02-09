@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import '../styles/ConfirmPopup.css'
+import '../styles/Button.css'
 type ConfirmPopupProps = {
     open: boolean
     title: string

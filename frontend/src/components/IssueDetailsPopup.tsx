@@ -1,4 +1,8 @@
 import type { Issue } from "../constants/issues";
+import "../styles/IssueDetailsPopup.css";
+import "../styles/ConfirmPopup.css";
+import "../styles/Button.css";
+import "../styles/Badge.css";
 
 type IssueDetailsPopupProps = {
     open: boolean;

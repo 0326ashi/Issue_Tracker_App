@@ -1,0 +1,33 @@
+.primary-button,
+.ghost-button {
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.primary-button {
+    border: none;
+    color: #ffffff;
+    background: linear-gradient(120deg, #1f2c78, #2e45c4);
+    box-shadow: 0 8px 16px rgba(31, 44, 120, 0.25);
+}
+
+.ghost-button {
+    border: 1px solid #b8c5d9;
+    background: #ffffff;
+    color: #2f43a2;
+}
+
+.ghost-button--compact {
+    padding: 12px 14px;
+    font-size: 0.78rem;
+}
+
+.ghost-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

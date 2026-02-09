@@ -1,6 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import './styles/auth.css'
-import './styles/dashboard.css'
 import CreateIssue from './pages/CreateIssue'
 import Dashboard from './pages/Dashboard'
 import EditIssue from './pages/EditIssue'
