@@ -1,4 +1,4 @@
-import type { Issue, IssuePriority, IssueSeverity } from '../constants/issues'
+import type { Issue, IssuePriority, IssueSeverity, IssueStatus } from '../constants/issues'
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -58,4 +58,19 @@ export const deleteIssue = async (issueId: string): Promise<void> => {
     })
 
     await handleResponse<{ message: string }>(response)
+}
+
+// API call for updating issue status
+export const updateIssueStatus = async (
+    issueId: string,
+    status: IssueStatus,
+): Promise<Issue> => {
+    const response = await fetch(`${API_URL}/api/issues/${issueId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+    })
+
+    const data = await handleResponse<IssueResponse>(response)
+    return data.issue
 }

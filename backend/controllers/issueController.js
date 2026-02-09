@@ -48,8 +48,31 @@ const deleteIssue = async (req, res) => {
   return res.json({ message: "Issue deleted." });
 };
 
+// Update issue status
+const updateIssueStatus = async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!status) {
+    return res.status(400).json({ message: "Status is required." });
+  }
+
+  const updatedIssue = await Issue.findByIdAndUpdate(
+    id,
+    { status },
+    { new: true, runValidators: true },
+  );
+
+  if (!updatedIssue) {
+    return res.status(404).json({ message: "Issue not found." });
+  }
+
+  return res.json({ issue: mapIssue(updatedIssue) });
+};
+
 module.exports = {
   createIssue,
   listIssues,
   deleteIssue,
+  updateIssueStatus,
 };
