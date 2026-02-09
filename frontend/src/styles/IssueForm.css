@@ -1,0 +1,59 @@
+.issue-form {
+    display: grid;
+    gap: 12px;
+}
+
+.issue-form input,
+.issue-form textarea,
+.issue-form select {
+    border: 1px solid #d6dbe6;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    background: #f8fbff;
+}
+
+.issue-form label,
+.issue-form__field {
+    display: grid;
+    gap: 6px;
+    font-size: 0.85rem;
+    color: #151535;
+}
+
+.issue-form__row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.issue-form__actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+}
+
+.issue-details__description {
+    margin: 0;
+    color: #4b5f7a;
+}
+
+.issue-details__meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    color: #63758f;
+}
+
+.issue-details__meta strong {
+    display: block;
+    margin-top: 4px;
+    color: #13233d;
+}
+
+.issue-details__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}

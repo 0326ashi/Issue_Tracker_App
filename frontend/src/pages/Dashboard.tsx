@@ -7,6 +7,9 @@ import Toast from "../components/Toast";
 import openImage from "../assets/open.png";
 import inProgressImage from "../assets/inprogress.png";
 import resolvedImage from "../assets/resolved.png";
+import "../styles/dashboard.css";
+import "../styles/Button.css";
+import "../styles/Badge.css";
 import {
     ISSUE_PRIORITY_OPTIONS,
     ISSUE_SEVERITY_OPTIONS,

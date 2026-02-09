@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ConfirmPopup from '../components/ConfirmPopup'
 import Dropdown from '../components/Dropdown'
+import '../styles/IssueForm.css'
+import '../styles/Button.css'
 import {
     ISSUE_PRIORITY_OPTIONS,
     ISSUE_SEVERITY_OPTIONS,

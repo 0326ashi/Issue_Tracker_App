@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import '../styles/Dropdown.css'
 
 //Dropdown component with accessibility features and outside click handling
 type DropdownOption<T extends string> = {
