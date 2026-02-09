@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import ConfirmPopup from '../components/ConfirmPopup'
-import Dropdown from '../components/Dropdown'
-import Toast from '../components/Toast'
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import ConfirmPopup from "../components/ConfirmPopup";
+import IssueDetailsPopup from "../components/IssueDetailsPopup.tsx";
+import Dropdown from "../components/Dropdown";
+import Toast from "../components/Toast";
+import openImage from "../assets/open.png";
+import inProgressImage from "../assets/inprogress.png";
+import resolvedImage from "../assets/resolved.png";
 import {
     ISSUE_PRIORITY_OPTIONS,
     ISSUE_SEVERITY_OPTIONS,
@@ -11,210 +15,345 @@ import {
     type IssuePriority,
     type IssueSeverity,
     type IssueStatus,
-} from '../constants/issues'
-import { deleteIssue, getIssues } from '../services/issues'
+} from "../constants/issues";
+import {
+    deleteIssue,
+    getIssueById,
+    getIssues,
+    updateIssueStatus,
+} from "../services/issues";
 
-const statusOptions: Array<IssueStatus | 'All'> = ['All', ...ISSUE_STATUS_OPTIONS]
-const priorityOptions: Array<IssuePriority | 'All'> = ['All', ...ISSUE_PRIORITY_OPTIONS]
-const severityOptions: Array<IssueSeverity | 'All'> = ['All', ...ISSUE_SEVERITY_OPTIONS]
+const statusOptions: Array<IssueStatus | "All"> = [
+    "All",
+    ...ISSUE_STATUS_OPTIONS,
+];
+const priorityOptions: Array<IssuePriority | "All"> = [
+    "All",
+    ...ISSUE_PRIORITY_OPTIONS,
+];
+const severityOptions: Array<IssueSeverity | "All"> = [
+    "All",
+    ...ISSUE_SEVERITY_OPTIONS,
+];
+const AUTO_DISMISS_MS = 2600;
+
+const useAutoDismiss = (isVisible: boolean, onDismiss: () => void) => {
+    useEffect(() => {
+        if (!isVisible) {
+            return undefined;
+        }
+
+        const timer = window.setTimeout(() => {
+            onDismiss();
+        }, AUTO_DISMISS_MS);
+
+        return () => window.clearTimeout(timer);
+    }, [isVisible, onDismiss]);
+};
+
+const useCloseOnOutsideAndEscape = (
+    isOpen: boolean,
+    ref: React.RefObject<HTMLElement | null>,
+    onClose: () => void,
+) => {
+    useEffect(() => {
+        if (!isOpen) {
+            return undefined;
+        }
+
+        const handleOutsideClick = (event: MouseEvent) => {
+            if (!ref.current?.contains(event.target as Node)) {
+                onClose();
+            }
+        };
+
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                onClose();
+            }
+        };
+
+        document.addEventListener("mousedown", handleOutsideClick);
+        document.addEventListener("keydown", handleEscape);
+
+        return () => {
+            document.removeEventListener("mousedown", handleOutsideClick);
+            document.removeEventListener("keydown", handleEscape);
+        };
+    }, [isOpen, onClose, ref]);
+};
 
 // Dashboard component for managing and displaying issues
 function Dashboard() {
-    const [issues, setIssues] = useState<Issue[]>([])
-    const [query, setQuery] = useState('')
-    const [debouncedQuery, setDebouncedQuery] = useState('')
-    const [statusFilter, setStatusFilter] = useState<IssueStatus | 'All'>('All')
-    const [priorityFilter, setPriorityFilter] = useState<IssuePriority | 'All'>('All')
-    const [severityFilter, setSeverityFilter] = useState<IssueSeverity | 'All'>('All')
-    const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null)
-    const [page, setPage] = useState(1)
-    const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
-    const [isDeleting, setIsDeleting] = useState(false)
-    const [showDeleteSuccess, setShowDeleteSuccess] = useState(false)
-    const navigate = useNavigate()
-    const userName = localStorage.getItem('username') || 'User'
+    const [issues, setIssues] = useState<Issue[]>([]);
+    const [query, setQuery] = useState("");
+    const [debouncedQuery, setDebouncedQuery] = useState("");
+    const [statusFilter, setStatusFilter] = useState<IssueStatus | "All">("All");
+    const [priorityFilter, setPriorityFilter] = useState<IssuePriority | "All">(
+        "All",
+    );
+    const [severityFilter, setSeverityFilter] = useState<IssueSeverity | "All">(
+        "All",
+    );
+    const [viewIssueId, setViewIssueId] = useState<string | null>(null);
+    const [viewIssue, setViewIssue] = useState<Issue | null>(null);
+    const [isViewLoading, setIsViewLoading] = useState(false);
+    const [viewError, setViewError] = useState("");
+    const [page, setPage] = useState(1);
+    const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+    const [statusTargetId, setStatusTargetId] = useState<string | null>(null);
+    const [statusTargetValue, setStatusTargetValue] =
+        useState<IssueStatus | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
+    const [showStatusSuccess, setShowStatusSuccess] = useState(false);
+    const [statusSuccessMessage, setStatusSuccessMessage] = useState("");
+    const [openMarkMenuId, setOpenMarkMenuId] = useState<string | null>(null);
+    const markMenuRef = useRef<HTMLDivElement | null>(null);
+    const navigate = useNavigate();
+    const userName = localStorage.getItem("username") || "User";
 
     const formatDate = (value: string) => {
-        const date = new Date(value)
+        const date = new Date(value);
         if (Number.isNaN(date.getTime())) {
-            return value
+            return value;
         }
 
-        const day = String(date.getDate()).padStart(2, '0')
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const year = date.getFullYear()
-        return `${day}-${month}-${year}`
-    }
+        const day = String(date.getDate()).padStart(2, "0");
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+    };
 
     useEffect(() => {
         const handle = setTimeout(() => {
-            setDebouncedQuery(query.trim())
-        }, 300)
+            setDebouncedQuery(query.trim());
+        }, 300);
 
-        return () => clearTimeout(handle)
-    }, [query])
+        return () => clearTimeout(handle);
+    }, [query]);
 
     useEffect(() => {
-        let isActive = true
+        let isActive = true;
 
         const load = async () => {
             try {
-                const data = await getIssues()
+                const data = await getIssues();
                 if (isActive) {
-                    setIssues(data)
+                    setIssues(data);
                 }
             } catch {
                 if (isActive) {
-                    setIssues([])
+                    setIssues([]);
                 }
             }
-        }
+        };
 
-        load()
+        load();
 
         return () => {
-            isActive = false
-        }
-    }, [])
+            isActive = false;
+        };
+    }, []);
 
     const statusCounts = useMemo(() => {
         return issues.reduce(
             (acc, issue) => {
-                acc[issue.status] += 1
-                return acc
+                acc[issue.status] += 1;
+                return acc;
             },
             {
                 Open: 0,
-                'In Progress': 0,
+                "In Progress": 0,
                 Resolved: 0,
                 Closed: 0,
             } as Record<IssueStatus, number>,
-        )
-    }, [issues])
+        );
+    }, [issues]);
 
     const filteredIssues = useMemo(() => {
-        const lowered = debouncedQuery.toLowerCase()
+        const lowered = debouncedQuery.toLowerCase();
 
         return issues.filter((issue) => {
             const matchesQuery =
                 lowered.length === 0 ||
                 issue.title.toLowerCase().includes(lowered) ||
-                issue.description.toLowerCase().includes(lowered)
-            const matchesStatus = statusFilter === 'All' || issue.status === statusFilter
+                issue.description.toLowerCase().includes(lowered);
+            const matchesStatus =
+                statusFilter === "All" || issue.status === statusFilter;
             const matchesPriority =
-                priorityFilter === 'All' || issue.priority === priorityFilter
+                priorityFilter === "All" || issue.priority === priorityFilter;
             const matchesSeverity =
-                severityFilter === 'All' || issue.severity === severityFilter
+                severityFilter === "All" || issue.severity === severityFilter;
 
-            return matchesQuery && matchesStatus && matchesPriority && matchesSeverity
-        })
-    }, [debouncedQuery, issues, priorityFilter, severityFilter, statusFilter])
+            return (
+                matchesQuery && matchesStatus && matchesPriority && matchesSeverity
+            );
+        });
+    }, [debouncedQuery, issues, priorityFilter, severityFilter, statusFilter]);
 
-    const pageSize = 3
-    const totalPages = Math.max(1, Math.ceil(filteredIssues.length / pageSize))
-    const safePage = Math.min(page, totalPages)
+    const pageSize = 5;
+    const totalPages = Math.max(1, Math.ceil(filteredIssues.length / pageSize));
+    const safePage = Math.min(page, totalPages);
 
     // Ensure current page is within valid range
     useEffect(() => {
         if (page !== safePage) {
-            setPage(safePage)
+            setPage(safePage);
         }
-    }, [page, safePage])
+    }, [page, safePage]);
 
     const pagedIssues = filteredIssues.slice(
         (safePage - 1) * pageSize,
         safePage * pageSize,
-    )
+    );
 
-    useEffect(() => {
-        if (!showDeleteSuccess) {
-            return undefined
-        }
+    useAutoDismiss(showDeleteSuccess, () => setShowDeleteSuccess(false));
+    useAutoDismiss(showStatusSuccess, () => setShowStatusSuccess(false));
+    useCloseOnOutsideAndEscape(
+        openMarkMenuId !== null,
+        markMenuRef,
+        () => setOpenMarkMenuId(null),
+    );
 
-        // Auto-dismiss the success toast
-        const timer = window.setTimeout(() => {
-            setShowDeleteSuccess(false)
-        }, 2600)
-
-        return () => window.clearTimeout(timer)
-    }, [showDeleteSuccess])
-
-    // Deselect issue if it no longer exists in filtered list
-    useEffect(() => {
-        if (selectedIssueId && !filteredIssues.some((issue) => issue.id === selectedIssueId)) {
-            setSelectedIssueId(null)
-        }
-    }, [filteredIssues, selectedIssueId])
-
-    const selectedIssue = useMemo(() => {
-        return issues.find((issue) => issue.id === selectedIssueId) || null
-    }, [issues, selectedIssueId])
+    const statusPills = [
+        {
+            key: "Open",
+            label: "Open",
+            image: openImage,
+            alt: "Open issues",
+            count: statusCounts.Open,
+            className: "status-pill--open",
+        },
+        {
+            key: "In Progress",
+            label: "In Progress",
+            image: inProgressImage,
+            alt: "In progress issues",
+            count: statusCounts["In Progress"],
+            className: "status-pill--progress",
+        },
+        {
+            key: "Resolved",
+            label: "Resolved",
+            image: resolvedImage,
+            alt: "Resolved issues",
+            count: statusCounts.Resolved,
+            className: "status-pill--resolved",
+        },
+    ];
 
     // Reset all filters to default values
     const resetFilters = () => {
-        setQuery('')
-        setStatusFilter('All')
-        setPriorityFilter('All')
-        setSeverityFilter('All')
-    }
+        setQuery("");
+        setStatusFilter("All");
+        setPriorityFilter("All");
+        setSeverityFilter("All");
+    };
 
-    const updateStatusWithConfirm = (status: IssueStatus) => {
-        if (!selectedIssue) {
-            return
+    const handleViewIssue = async (issueId: string) => {
+        const cachedIssue = issues.find((issue) => issue.id === issueId) || null;
+        setViewIssueId(issueId);
+        setViewIssue(cachedIssue);
+        setViewError("");
+        setIsViewLoading(true);
+
+        try {
+            const issue = await getIssueById(issueId);
+            setViewIssue(issue);
+        } catch {
+            setViewError("Unable to load issue details.");
+        } finally {
+            setIsViewLoading(false);
+        }
+    };
+
+    const closeViewPopup = () => {
+        setViewIssueId(null);
+        setViewIssue(null);
+        setViewError("");
+        setIsViewLoading(false);
+    };
+
+    // Request the status change of an issue
+    const requestStatusChange = (issueId: string, status: IssueStatus) => {
+        setStatusTargetId(issueId);
+        setStatusTargetValue(status);
+    };
+
+    // Cancel status change
+    const cancelStatusChange = () => {
+        setStatusTargetId(null);
+        setStatusTargetValue(null);
+    };
+
+    // Confirm status change
+    const confirmStatusChange = async () => {
+        if (!statusTargetId || !statusTargetValue) {
+            return;
         }
 
-        const message =
-            status === 'Resolved'
-                ? 'Mark this issue as resolved?'
-                : 'Close this issue?'
+        try {
+            const updatedIssue = await updateIssueStatus(
+                statusTargetId,
+                statusTargetValue,
+            );
+            setIssues((current) =>
+                current.map((issue) =>
+                    issue.id === statusTargetId ? updatedIssue : issue,
+                ),
+            );
+            setStatusTargetId(null);
+            setStatusTargetValue(null);
+            setStatusSuccessMessage(
+                statusTargetValue === "Resolved"
+                    ? "Issue resolved successfully."
+                    : "Issue moved to in progress.",
+            );
+            setShowStatusSuccess(true);
+        } catch {
 
-        if (!window.confirm(message)) {
-            return
         }
+    };
 
-        setIssues((current) =>
-            current.map((issue) =>
-                issue.id === selectedIssue.id ? { ...issue, status } : issue,
-            ),
-        )
-    }
-
+    //Handle delete button click by setting the target issue 
     const handleDeleteIssue = (issueId: string) => {
-        setDeleteTargetId(issueId)
-    }
+        setDeleteTargetId(issueId);
+    };
 
-    const cancelDelete = () => {
-        if (!isDeleting) {
-            setDeleteTargetId(null)
-        }
-    }
-
+    // Confirm deletion
     const confirmDelete = async () => {
         if (!deleteTargetId) {
-            return
+            return;
         }
 
-        setIsDeleting(true)
+        setIsDeleting(true);
         try {
-            await deleteIssue(deleteTargetId)
-            setIssues((current) => current.filter((issue) => issue.id !== deleteTargetId))
-            if (selectedIssueId === deleteTargetId) {
-                setSelectedIssueId(null)
-            }
-            setDeleteTargetId(null)
-            setShowDeleteSuccess(true)
+            await deleteIssue(deleteTargetId);
+            setIssues((current) =>
+                current.filter((issue) => issue.id !== deleteTargetId),
+            );
+            setDeleteTargetId(null);
+            setShowDeleteSuccess(true);
         } catch {
-            // Keep UI state unchanged on delete failure
+
         } finally {
-            setIsDeleting(false)
+            setIsDeleting(false);
         }
-    }
+    };
+
+    // Cancel deletion
+    const cancelDelete = () => {
+        if (!isDeleting) {
+            setDeleteTargetId(null);
+        }
+    };
 
     // Handle logout by clearing local storage and navigating to login page
     const handleLogout = () => {
-        localStorage.clear()
-        navigate('/login')
-    }
+        localStorage.clear();
+        navigate("/login");
+    };
 
     return (
         <div className="dashboard-page">
@@ -242,7 +381,7 @@ function Dashboard() {
                         <button
                             className="primary-button"
                             type="button"
-                            onClick={() => navigate('/issues/new')}
+                            onClick={() => navigate("/issues/new")}
                         >
                             Create issue
                         </button>
@@ -252,44 +391,22 @@ function Dashboard() {
                 <section className="panel status-overview">
                     <h2>Status Overview</h2>
                     <div className="status-pills">
-                        <div className="status-pill status-pill--open">
-                            <span className="status-pill__icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path
-                                        d="M6 2h12v2h-1v4.1l-3.2 3.9 3.2 3.9V20h1v2H6v-2h1v-4.1L10.2 12 7 8.1V4H6Zm3 2v3.4l3 3.6 3-3.6V4Zm0 16h6v-3.4l-3-3.6-3 3.6Z"
-                                        fill="currentColor"
+                        {statusPills.map((pill) => (
+                            <div
+                                key={pill.key}
+                                className={`status-pill ${pill.className}`}
+                            >
+                                <span className="status-pill__icon" aria-hidden="true">
+                                    <img
+                                        className="status-pill__image"
+                                        src={pill.image}
+                                        alt={pill.alt}
                                     />
-                                </svg>
-                            </span>
-                            <span className="status-pill__label">Open</span>
-                            <span className="status-pill__count">{statusCounts.Open}</span>
-                        </div>
-                        <div className="status-pill status-pill--progress">
-                            <span className="status-pill__icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path
-                                        d="m14.6 3 6.4 6.4-4.2 1.4-2.2 2.2 1.4 4.2-6.4-6.4 2.2-2.2Zm-7 7L11 13.4 6.8 17.6c-.6.6-1.6.6-2.2 0s-.6-1.6 0-2.2Z"
-                                        fill="currentColor"
-                                    />
-                                </svg>
-                            </span>
-                            <span className="status-pill__label">In Progress</span>
-                            <span className="status-pill__count">
-                                {statusCounts['In Progress']}
-                            </span>
-                        </div>
-                        <div className="status-pill status-pill--resolved">
-                            <span className="status-pill__icon" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path
-                                        d="M12 4a8 8 0 1 0 8 8 8 8 0 0 0-8-8Zm-1.1 10.6-3-3 1.4-1.4 1.6 1.6 4-4 1.4 1.4Z"
-                                        fill="currentColor"
-                                    />
-                                </svg>
-                            </span>
-                            <span className="status-pill__label">Resolved</span>
-                            <span className="status-pill__count">{statusCounts.Resolved}</span>
-                        </div>
+                                </span>
+                                <span className="status-pill__label">{pill.label}</span>
+                                <span className="status-pill__count">{pill.count}</span>
+                            </div>
+                        ))}
                     </div>
                 </section>
 
@@ -354,27 +471,20 @@ function Dashboard() {
                                 key={issue.id}
                                 className={`issue-card issue-card--${issue.status
                                     .toLowerCase()
-                                    .replace(' ', '-')}`}
+                                    .replace(" ", "-")}`}
                             >
                                 <div className="issue-card__header">
                                     <div>
                                         <h3>{issue.title}</h3>
-                                        <p>{issue.description}</p>
                                     </div>
                                 </div>
                                 <div className="issue-card__meta">
-                                    <span className={`badge badge--status badge--${issue.status
-                                        .toLowerCase()
-                                        .replace(' ', '-')}`}>
+                                    <span
+                                        className={`badge badge--status badge--${issue.status
+                                            .toLowerCase()
+                                            .replace(" ", "-")}`}
+                                    >
                                         {issue.status}
-                                    </span>
-                                    <span className={`badge badge--priority badge--${issue.priority
-                                        .toLowerCase()}`}>
-                                        {issue.priority} priority
-                                    </span>
-                                    <span className={`badge badge--severity badge--${issue.severity
-                                        .toLowerCase()}`}>
-                                        {issue.severity} severity
                                     </span>
                                 </div>
                                 <div className="issue-card__actions">
@@ -386,6 +496,7 @@ function Dashboard() {
                                             className="icon-button"
                                             type="button"
                                             aria-label="View details"
+                                            onClick={() => handleViewIssue(issue.id)}
                                         >
                                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                                 <path
@@ -409,6 +520,53 @@ function Dashboard() {
                                             </svg>
                                             <span>Edit</span>
                                         </button>
+                                        <div
+                                            className="mark-menu"
+                                            ref={openMarkMenuId === issue.id ? markMenuRef : null}
+                                        >
+                                            <button
+                                                className="icon-button mark-menu__button"
+                                                type="button"
+                                                aria-haspopup="menu"
+                                                aria-expanded={openMarkMenuId === issue.id}
+                                                onClick={() =>
+                                                    setOpenMarkMenuId((current) =>
+                                                        current === issue.id ? null : issue.id,
+                                                    )
+                                                }
+                                            >
+                                                <span>Mark as</span>
+                                                <span className="mark-menu__caret" aria-hidden="true" />
+                                            </button>
+                                            {openMarkMenuId === issue.id && (
+                                                <div className="mark-menu__list" role="menu">
+                                                    <button
+                                                        className="mark-menu__item"
+                                                        type="button"
+                                                        role="menuitem"
+                                                        disabled={issue.status === "In Progress"}
+                                                        onClick={() => {
+                                                            setOpenMarkMenuId(null);
+                                                            requestStatusChange(issue.id, "In Progress");
+                                                        }}
+                                                    >
+                                                        In progress
+                                                    </button>
+                                                    <button
+                                                        className="mark-menu__item"
+                                                        type="button"
+                                                        role="menuitem"
+                                                        disabled={issue.status === "Resolved"}
+                                                        onClick={() => {
+                                                            setOpenMarkMenuId(null);
+                                                            requestStatusChange(issue.id, "Resolved");
+                                                        }}
+                                                    >
+                                                        Resolved
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
                                         <button
                                             className="icon-button icon-button--delete"
                                             type="button"
@@ -455,55 +613,16 @@ function Dashboard() {
                     </div>
                 </section>
 
-                {selectedIssue && (
-                    <section className="panel detail-panel">
-                        <div className="panel-header">
-                            <div>
-                                <h2>Issue details</h2>
-                            </div>
-                            <span className={`badge badge--status badge--${selectedIssue.status
-                                .toLowerCase()
-                                .replace(' ', '-')}`}>
-                                {selectedIssue.status}
-                            </span>
-                        </div>
-
-                        <>
-                            <p className="issue-details__description">
-                                {selectedIssue.description}
-                            </p>
-                            <div className="issue-details__meta">
-                                <div>
-                                    <span>Priority</span>
-                                    <strong>{selectedIssue.priority}</strong>
-                                </div>
-                                <div>
-                                    <span>Severity</span>
-                                    <strong>{selectedIssue.severity}</strong>
-                                </div>
-                                <div>
-                                    <span>Created</span>
-                                    <strong>{formatDate(selectedIssue.createdAt)}</strong>
-                                </div>
-                            </div>
-                            <div className="issue-details__actions">
-                                <button className="primary-button" type="button">
-                                    Edit issue
-                                </button>
-                                {selectedIssue.status !== 'Resolved' && (
-                                    <button
-                                        className="ghost-button"
-                                        type="button"
-                                        onClick={() => updateStatusWithConfirm('Resolved')}
-                                    >
-                                        Mark resolved
-                                    </button>
-                                )}
-                            </div>
-                        </>
-                    </section>
-                )}
             </div>
+
+            <IssueDetailsPopup
+                open={viewIssueId !== null}
+                issue={viewIssue}
+                loading={isViewLoading}
+                error={viewError}
+                onClose={closeViewPopup}
+                formatDate={formatDate}
+            />
 
             <ConfirmPopup
                 open={deleteTargetId !== null}
@@ -516,11 +635,25 @@ function Dashboard() {
                 onCancel={cancelDelete}
             />
 
-            {showDeleteSuccess && (
-                <Toast message="Issue deleted successfully." />
-            )}
+            <ConfirmPopup
+                open={statusTargetId !== null && statusTargetValue !== null}
+                title="Update status"
+                message={
+                    statusTargetValue === "Resolved"
+                        ? "Mark this issue as resolved?"
+                        : "Move this issue to in progress?"
+                }
+                confirmText="Yes"
+                cancelText="No"
+                onConfirm={confirmStatusChange}
+                onCancel={cancelStatusChange}
+            />
+
+            {showDeleteSuccess && <Toast message="Issue deleted successfully." />}
+
+            {showStatusSuccess && <Toast message={statusSuccessMessage} />}
         </div>
-    )
+    );
 }
 
-export default Dashboard
+export default Dashboard;
