@@ -10,13 +10,17 @@ The system supports CRUD operations, user authentication, and a clean, user-frie
 - Authentication using JWT 
 
 ### 📝 Issue Management 
-- Create, view, update, and delete issues
-- Track issue status (Open, In Progress, Resolved)
-- Filter issues by status, priority & severity
+- Create new issues with title, description, and other details
+- View detailed information for individual issues
+- Update existing issue details
+- Change issue status to In Progress or Resolved
+- View issue count by status
+- Search and filter issues based on multiple criteria
+- Delete issues when they are no longer required
 
 ### 🎨 User Interface
-- Search and filter issues
-- Clear status indicators
+- Easy navigation between issue lists and details
+- Visual indicators for issue status, priority, and severity
 
 ## ⚙️ Setup Instructions
 ### 1️⃣ Clone the Repository
@@ -47,6 +51,13 @@ npm install
 ```bash
 npm start
 ```
+
+## 🧰 Tech Stack
+**Frontend**: React, TypeScript, HTML, CSS
+
+**Backend**: Node.js, Express.js, MongoDB, JWT for authentication
+
+
 
 
 
