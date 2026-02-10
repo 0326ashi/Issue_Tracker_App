@@ -44,7 +44,7 @@ function CreateIssue() {
         localStorage.removeItem(storageKey)
     }, [currentSnapshot, hasDraft])
 
-    // Handle form submission
+    // Handle form submission with form validation
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault()
         const missingFields: string[] = []
@@ -87,6 +87,7 @@ function CreateIssue() {
         }
     }
 
+    // Handle back button click with confirmation if there are unsaved changes
     const handleBack = () => {
         if (hasDraft) {
             setShowCancelConfirm(true)
@@ -97,12 +98,14 @@ function CreateIssue() {
         navigate('/dashboard')
     }
 
+    // Confirm discarding changes and navigate back to dashboard
     const confirmDiscardChanges = () => {
         localStorage.removeItem(storageKey)
         setShowCancelConfirm(false)
         navigate('/dashboard')
     }
 
+    // Cancel discarding changes and stay on the page
     const cancelDiscardChanges = () => {
         setShowCancelConfirm(false)
     }

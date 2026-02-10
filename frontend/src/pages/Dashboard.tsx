@@ -40,6 +40,7 @@ const severityOptions: Array<IssueSeverity | "All"> = [
 ];
 const AUTO_DISMISS_MS = 2600;
 
+// Auto dismiss hook for success messages
 const useAutoDismiss = (isVisible: boolean, onDismiss: () => void) => {
     useEffect(() => {
         if (!isVisible) {
@@ -54,6 +55,7 @@ const useAutoDismiss = (isVisible: boolean, onDismiss: () => void) => {
     }, [isVisible, onDismiss]);
 };
 
+// Hook to close popups on outside click or escape key press
 const useCloseOnOutsideAndEscape = (
     isOpen: boolean,
     ref: React.RefObject<HTMLElement | null>,
@@ -92,12 +94,8 @@ function Dashboard() {
     const [query, setQuery] = useState("");
     const [debouncedQuery, setDebouncedQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<IssueStatus | "All">("All");
-    const [priorityFilter, setPriorityFilter] = useState<IssuePriority | "All">(
-        "All",
-    );
-    const [severityFilter, setSeverityFilter] = useState<IssueSeverity | "All">(
-        "All",
-    );
+    const [priorityFilter, setPriorityFilter] = useState<IssuePriority | "All">("All");
+    const [severityFilter, setSeverityFilter] = useState<IssueSeverity | "All">("All");
     const [viewIssueId, setViewIssueId] = useState<string | null>(null);
     const [viewIssue, setViewIssue] = useState<Issue | null>(null);
     const [isViewLoading, setIsViewLoading] = useState(false);
@@ -106,8 +104,7 @@ function Dashboard() {
     const [page, setPage] = useState(1);
     const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
     const [statusTargetId, setStatusTargetId] = useState<string | null>(null);
-    const [statusTargetValue, setStatusTargetValue] =
-        useState<IssueStatus | null>(null);
+    const [statusTargetValue, setStatusTargetValue] = useState<IssueStatus | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteSuccess, setShowDeleteSuccess] = useState(false);
     const [showStatusSuccess, setShowStatusSuccess] = useState(false);
@@ -117,6 +114,7 @@ function Dashboard() {
     const navigate = useNavigate();
     const userName = localStorage.getItem("username") || "User";
 
+    // Format date to DD-MM-YYYY
     const formatDate = (value: string) => {
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) {
@@ -183,6 +181,7 @@ function Dashboard() {
         );
     }, [issues]);
 
+    // Filter issues based on search query and selected filters
     const filteredIssues = useMemo(() => {
         const lowered = debouncedQuery.toLowerCase();
 
@@ -228,6 +227,7 @@ function Dashboard() {
         () => setOpenMarkMenuId(null),
     );
 
+    // Define status pills with corresponding icons and counts
     const statusPills = [
         {
             key: "Open",
@@ -263,6 +263,7 @@ function Dashboard() {
         setSeverityFilter("All");
     };
 
+    // View an issue by loading its details 
     const handleViewIssue = async (issueId: string) => {
         const cachedIssue = issues.find((issue) => issue.id === issueId) || null;
         setViewIssueId(issueId);
@@ -280,6 +281,7 @@ function Dashboard() {
         }
     };
 
+    // Close the issue view popup
     const closeViewPopup = () => {
         setViewIssueId(null);
         setViewIssue(null);
