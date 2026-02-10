@@ -1,6 +1,6 @@
 import type { Issue, IssuePriority, IssueSeverity, IssueStatus } from '../constants/issues'
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_URL = "http://localhost:5000";
 
 type IssueResponse = {
     issue: Issue
@@ -12,6 +12,12 @@ type IssueListResponse = {
 
 type IssueError = {
     message: string
+}
+
+// Build auth headers when a token is available
+const getAuthHeaders = (): Record<string, string> => {
+    const token = localStorage.getItem('authToken')
+    return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 // Helper function to handle API responses
@@ -36,7 +42,7 @@ export const createIssue = async (payload: {
 }): Promise<Issue> => {
     const response = await fetch(`${API_URL}/api/issues`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(payload),
     })
 
@@ -46,14 +52,18 @@ export const createIssue = async (payload: {
 
 // API call for fetching all issues
 export const getIssues = async (): Promise<Issue[]> => {
-    const response = await fetch(`${API_URL}/api/issues`)
+    const response = await fetch(`${API_URL}/api/issues`, {
+        headers: getAuthHeaders(),
+    })
     const data = await handleResponse<IssueListResponse>(response)
     return data.issues
 }
 
 // API call for fetching a single issue by ID
 export const getIssueById = async (issueId: string): Promise<Issue> => {
-    const response = await fetch(`${API_URL}/api/issues/${issueId}`)
+    const response = await fetch(`${API_URL}/api/issues/${issueId}`, {
+        headers: getAuthHeaders(),
+    })
     const data = await handleResponse<IssueResponse>(response)
     return data.issue
 }
@@ -62,6 +72,7 @@ export const getIssueById = async (issueId: string): Promise<Issue> => {
 export const deleteIssue = async (issueId: string): Promise<void> => {
     const response = await fetch(`${API_URL}/api/issues/${issueId}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
     })
 
     await handleResponse<{ message: string }>(response)
@@ -74,7 +85,7 @@ export const updateIssueStatus = async (
 ): Promise<Issue> => {
     const response = await fetch(`${API_URL}/api/issues/${issueId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ status }),
     })
 
@@ -89,7 +100,7 @@ export const updateIssueStatusEdit = async (
 ): Promise<Issue> => {
     const response = await fetch(`${API_URL}/api/issues/${issueId}/statusedit`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ status }),
     })
 
@@ -109,7 +120,7 @@ export const updateIssue = async (
 ): Promise<Issue> => {
     const response = await fetch(`${API_URL}/api/issues/${issueId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(payload),
     })
 
