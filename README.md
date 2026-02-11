@@ -20,7 +20,7 @@ The system supports CRUD operations, user authentication, and a clean, user-frie
 
 ### 🎨 User Interface
 - Easy navigation between issue lists and details
-- Visual indicators for issue status, priority, and severity
+- Visual indicators for issue status
 
 ## ⚙️ Setup Instructions
 ### 1️⃣ Clone the Repository
@@ -53,7 +53,7 @@ npm start
 ```
 
 ## 🧰 Tech Stack
-**Frontend**: React, TypeScript, HTML, CSS
+**Frontend**: React, Vite, TypeScript
 
 **Backend**: Node.js, Express.js, MongoDB, JWT for authentication
 
